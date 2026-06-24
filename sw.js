@@ -1,6 +1,6 @@
 const CACHE_NAME = 'sukuna-v1';
 const ASSETS = [
-  'main.html',
+  'index.html',
   'matter.min.js',
   'icon.png',
   'tier1.png',
