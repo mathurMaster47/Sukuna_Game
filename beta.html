@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sukuna - Magical Physics Puzzle</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Matter.js Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+  
+  <!-- Register the Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+    <style>
+                /* Design System & Reset */
+        :root {
+            --bg-gradient: linear-gradient(135deg, #120317 0%, #25072d 50%, #3e0c4a 100%);
+            --panel-bg: rgba(255, 255, 255, 0.05);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #d8c3df;
+            --accent-color: #ff33aa;
+            --accent-glow: rgba(255, 51, 170, 0.4);
+            --neon-blue: #00f0ff;
+            --neon-green: #da70d6;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        /* Add this to style.css to hide labels everywhere */
+        .evo-label {
+            display: none !important;
+        }
+        
+        #game-viewport {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            display: flex;
+            justify-content: center; /* Keeps the game centered in its grid cell */
+            align-items: center;
+            margin-left: 5%;      /* Add this to push it away from the left side */
+            margin-top: 3%;       /* Keep your vertical spacing */
+        }
+        
+        #game-viewport {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 3%; /* Adjust this value to add more space */
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: visible;
+        }
+        
+        /* Glassmorphism Utility */
+        .glassmorphism {
+            background: var(--panel-bg);
+            backdrop-filter: blur(0.8rem);
+            -webkit-backdrop-filter: blur(0.8rem);
+            border: 0.067rem solid var(--panel-border);
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 2rem 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        /* App Container Layout */
+        #app-container {
+            display: grid;
+            grid-template-columns: 28% 1fr;
+            grid-template-rows: auto;
+            gap: 1%;
+            padding: 1%;
+            max-width: 100%;
+            width: 100%;
+            height: 100vh;
+            margin: 0 auto;
+            overflow: visible;
+        }
+        
+        /* Header / Sidebar styles */
+        #game-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            grid-column: 1;
+            grid-row: 1;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            color: var(--text-primary);
+            text-shadow: 0 0 1rem rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, #ffffff 0%, #ff33aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255, 51, 170, 0.1) 0%, rgba(0, 240, 255, 0.05) 100%);
+            border: 1px solid rgba(255, 51, 170, 0.3);
+            border-radius: 0.8rem;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            box-shadow: 0 0 1.5rem rgba(255, 51, 170, 0.1), inset 0 0 1rem rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: rgba(255, 51, 170, 0.6);
+            box-shadow: 0 0 2rem rgba(255, 51, 170, 0.2), inset 0 0 1rem rgba(255, 255, 255, 0.08);
+            transform: translateY(-0.2rem);
+        }
+        
+        .stat-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00f0ff 0%, #ff33aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .next-preview-card {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1) 0%, rgba(255, 51, 170, 0.05) 100%);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 0.8rem;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: center;
+            box-shadow: 0 0 1.5rem rgba(0, 240, 255, 0.1), inset 0 0 1rem rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .next-preview-card:hover {
+            border-color: rgba(0, 240, 255, 0.6);
+            box-shadow: 0 0 2rem rgba(0, 240, 255, 0.2), inset 0 0 1rem rgba(255, 255, 255, 0.08);
+        }
+        
+        #next-fruit-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        
+        .preview-img {
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 50%;
+            border: 2px solid var(--neon-blue);
+            background: rgba(0, 240, 255, 0.1);
+            object-fit: cover;
+            box-shadow: 0 0 1.5rem var(--accent-glow), inset 0 0 1rem rgba(0, 240, 255, 0.2);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .preview-img:hover {
+            transform: scale(1.05);
+        }
+        
+        .preview-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .glass-btn {
+            background: linear-gradient(135deg, rgba(255, 51, 170, 0.15) 0%, rgba(0, 240, 255, 0.1) 100%);
+            border: 1px solid rgba(255, 51, 170, 0.4);
+            border-radius: 0.8rem;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 1rem rgba(255, 51, 170, 0.1);
+        }
+        
+        .glass-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 51, 170, 0.25) 0%, rgba(0, 240, 255, 0.15) 100%);
+            border-color: rgba(255, 51, 170, 0.6);
+            box-shadow: 0 0 1.5rem rgba(255, 51, 170, 0.25);
+            transform: translateY(-0.2rem);
+        }
+        
+        .glass-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Game Viewport and Container */
+        #game-viewport {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #game-viewport {
+            grid-column: 2;
+            grid-row: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            padding-top: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 55vw;
+            max-width: 350px;
+            max-height: 75vh;
+            aspect-ratio: 450 / 700;
+            background: rgba(45, 11, 54, 0.7);
+            border-left: 0.4rem solid var(--panel-border);
+            border-right: 0.4rem solid var(--panel-border);
+            border-bottom: 0.9rem solid var(--panel-border);
+            border-radius: 0 0 1.8% 1.8%;
+            box-shadow: 0 1.7rem 3.9rem rgba(0, 0, 0, 0.5), 
+                        inset 0 0 3.3rem rgba(0, 0, 0, 0.4);
+            overflow: visible;
+            z-index: 10;
+        }
+        
+        #game-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+        
+        /* Interactive elements inside container */
+        .guide-line {
+            position: absolute;
+            top: 17.14%;
+            left: 0;
+            right: 0;
+            height: 0.2rem;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(255, 51, 102, 0.6),
+                rgba(255, 51, 102, 0.6) 8px,
+                transparent 8px,
+                transparent 16px
+            );
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #drop-zone-overlay {
+            position: absolute;
+            top: 3.3%;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        
+        /* Evolution Chain Footer */
+        #game-footer {
+            display: none;
+        }
+        
+        .evolution-chain {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            overflow-x: auto;
+        }
+        
+        .evolution-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 0.8rem;
+            padding: 0.6rem 0.5rem;
+            min-width: 55px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .evolution-item:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-0.2rem);
+        }
+        
+        .evo-img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            object-fit: cover;
+            margin-bottom: 0.5rem;
+        }
+        
+        .evo-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-align: center;
+            white-space: nowrap;
+        }
+        
+        .evolution-arrow {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.25);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        /* Modal and Game Over overlay */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 11, 20, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .modal-content {
+            text-align: center;
+            padding: 4.4%;
+            max-width: 42%;
+            width: 90%;
+            border-radius: 2.7%;
+            box-shadow: 0 2.2rem 5.6rem rgba(0,0,0,0.6);
+            animation: scaleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        .modal h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            text-shadow: 0 0 2.2rem var(--accent-glow);
+            margin-bottom: 1.1%;
+        }
+        
+        .final-score-container {
+            margin: 2.7% 0;
+            background: rgba(255,255,255,0.03);
+            border-radius: 1.8%;
+            padding: 1.8%;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .final-score-label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 0.6%;
+        }
+        
+        .final-score-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #ff6600 100%);
+            border: none;
+            border-radius: 1.3%;
+            color: white;
+            font-family: var(--font-sans);
+            font-size: 1.1rem;
+            font-weight: 800;
+            padding: 1.6% 3.1%;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 0.6rem 1.7rem var(--accent-glow);
+            transition: all 0.2s ease;
+        }
+        
+        .primary-btn:hover {
+            transform: translateY(-0.2rem);
+            box-shadow: 0 0.9rem 2.2rem var(--accent-glow);
+        }
+        
+        .primary-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.15; }
+            50% { opacity: 0.35; }
+        }
+        
+        @keyframes scaleUp {
+            from {
+                opacity: 0;
+                transform: scale(0.85);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Responsive Scaling for Mobile Screens */
+        @media (max-width: 800px) {
+            #app-container {
+                grid-template-columns: 100%;
+                grid-template-rows: auto auto;
+                gap: 0.5%;
+                padding: 0.5%;
+                height: 100vh;
+                overflow-y: auto;
+                justify-content: stretch;
+                overflow: visible;
+            }
+        
+            #game-header {
+                grid-column: 1;
+                grid-row: 1;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+        
+            .logo {
+                font-size: 1.2rem;
+            }
+        
+            .stats-container {
+                grid-template-columns: auto auto;
+                gap: 0.3rem;
+            }
+        
+            .stat-card {
+                padding: 0.5rem 0.8rem;
+                min-width: 60px;
+            }
+        
+            .stat-value {
+                font-size: 1rem;
+            }
+        
+            .next-preview-card {
+                flex-direction: row;
+                padding: 0.5rem 0.8rem;
+                gap: 0.5rem;
+                border-radius: 0.6rem;
+                display: none;
+            }
+        
+            #next-fruit-container {
+                flex-direction: row;
+                gap: 0.4rem;
+            }
+        
+            .preview-img {
+                width: 2.5rem;
+                height: 2.5rem;
+                border-width: 1.5px;
+            }
+        
+            .preview-name {
+                display: none;
+            }
+        
+            .glass-btn {
+                padding: 0.6rem 0.8rem;
+                font-size: 0.8rem;
+                border-radius: 0.8rem;
+            }
+        
+            #game-viewport {
+                grid-column: 1;
+                grid-row: 2;
+                width: 100%;
+                align-items: center;
+                padding-top: 0;
+            }
+        
+            #game-container {
+                width: 90vw;
+                max-width: 100%;
+                height: auto;
+                aspect-ratio: 450 / 700;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    <div id="app-container">
+        <!-- Sidebar containing Score, Next Preview and Instructions -->
+        <header id="game-header">
+            <h1 class="logo"><span>SUKUNA</span></h1>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <span class="stat-label">SCORE</span>
+                    <span id="score-val" class="stat-value">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">BEST</span>
+                    <span id="best-val" class="stat-value">0</span>
+                </div>
+            </div>
+
+            <div class="next-preview-card">
+                <span class="stat-label">NEXT ITEM</span>
+                <div id="next-fruit-container">
+                    <img id="next-fruit-img" class="preview-img" src="tier1.png" alt="Star Gem">
+                    <span id="next-fruit-name" class="preview-name">Star Gem</span>
+                </div>
+            </div>
+            
+            <button id="restart-btn" class="glass-btn">Restart Game</button>
+        </header>
+
+        <!-- Main Game Area -->
+        <main id="game-viewport">
+            <div id="game-container">
+                <!-- Matter.js Canvas will be appended here -->
+                <div id="guide-line" class="guide-line"></div>
+                <div id="drop-zone-overlay">Touch or Click to Drop</div>
+            </div>
+        </main>
+
+        <!-- Legend showing item evolution hierarchy -->
+        <footer id="game-footer">
+            <h3>Evolution Chain</h3>
+            <div class="evolution-chain">
+                <div class="evolution-item" data-tier="0"><img src="tier1.png" class="evo-img" alt="Star Gem" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect width=\'100%\' height=\'100%\' rx=\'50%\' fill=\'%23ffe066\'/><text x=\'50%\' y=\'50%\' font-size=\'18\' text-anchor=\'middle\' dy=\'.35em\'>⭐</text></svg>';"><span class="evo-label">Star Gem</span></div>
+                <div class="evolution-arrow">→</div>
+                <div class="evolution-item" data-tier="1"><img src="tier2.png" class="evo-img" alt="Moon Shard" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect width=\'100%\' height=\'100%\' rx=\'50%\' fill=\'%2380e5ff\'/><text x=\'50%\' y=\'50%\' font-size=\'18\' text-anchor=\'middle\' dy=\'.35em\'>🌙</text></svg>';"><span class="evo-label">Moon Shard</span></div>
+                <div class="evolution-arrow">→</div>
+                <div class="evolution-item" data-tier="2"><img src="tier3.png" class="evo-img" alt="Sun Drop" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect width=\'100%\' height=\'100%\' rx=\'50%\' fill=\'%23ff8c1a\'/><text x=\'50%\' y=\'50%\' font-size=\'18\' text-anchor=\'middle\' dy=\'.35em\'>☀️</text></svg>';"><span class="evo-label">Sun Drop</span></div>
+                <div class="evolution-arrow">→</div>
+                <div class="evolution-item" data-tier="3"><img src="tier4.png" class="evo-img" alt="Galaxy Petal" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect width=\'100%\' height=\'100%\' rx=\'50%\' fill=\'%23ff66cc\'/><text x=\'50%\' y=\'50%\' font-size=\'18\' text-anchor=\'middle\' dy=\'.35em\'>🌸</text></svg>';"><span class="evo-label">Gal Petal</span></div>
+                <div class="evolution-arrow">→</div>
+                <div class="evolution-item" data-tier="4"><img src="tier5.png" class="evo-img" alt="Nebula Pearl" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect width=\'100%\' height=\'100%\' rx=\'50%\' fill=\'%23b366ff\'/><text x=\'50%\' y=\'50%\' font-size=\'18\' text-anchor=\'middle\' dy=\'.35em\'>🔮</text></svg>';"><span class="evo-label">Neb Pearl</span></div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Game Over Modal Screen -->
+    <div id="gameover-modal" class="modal hidden">
+        <div class="modal-content glassmorphism">
+            <h2>GAME OVER</h2>
+            <p>The space is filled!</p>
+            <div class="final-score-container">
+                <span class="final-score-label">Final Score</span>
+                <span id="final-score" class="final-score-value">0</span>
+            </div>
+            <button id="modal-restart-btn" class="primary-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- MODULE ALIASES
+        const { Engine, Render, Runner, Bodies, Composite, Events, Body, Vector } = Matter;
+
+        // --- GAME CONFIGURATION CONSTANTS ---
+        // 1. SPRITE SETTINGS
+        // Set USE_SPRITES to true to render the sprite images ('tier1.png', 'tier2.png', etc.)
+        // A robust fallback is active: if images are downloading or fail, beautiful glowing emojis render.
+        const USE_SPRITES = true; 
+
+        // 2. CELESTIAL ITEM PROGRESSION (10 Tiers)
+        // Radii are structured progressively to ensure larger shapes for higher tiers.
+        const CELESTIAL_TIERS = [
+            { tier: 0, name: "Star Gem", radius: 18, color: "#ffe066", emoji: "⭐", score: 2 },
+            { tier: 1, name: "Moon Shard", radius: 25, color: "#80e5ff", emoji: "🌙", score: 4 },
+            { tier: 2, name: "Sun Drop", radius: 32, color: "#ff8c1a", emoji: "☀️", score: 8 },
+            { tier: 3, name: "Galaxy Petal", radius: 40, color: "#ff66cc", emoji: "🌸", score: 16 },
+            { tier: 4, name: "Nebula Pearl", radius: 48, color: "#b366ff", emoji: "🔮", score: 32 },
+            { tier: 5, name: "Comet Ring", radius: 57, color: "#33ffff", emoji: "🪐", score: 64 },
+        ];
+
+        // 3. PHYSICAL METRICS
+        const WORLD_WIDTH = 450;      // Fixed width in physics coordinate space
+        const WORLD_HEIGHT = 700;     // Fixed height in physics coordinate space
+        const DROP_Y = 60;            // Y height where preview item is held and dropped
+        const LIMIT_Y = 120;          // Y height above which game-over starts checking
+        const GAME_OVER_BUFFER_MS = 1500; // Duration (ms) an item must stay above LIMIT_Y to trigger GameOver
+        const DROP_COOLDOWN_MS = 600;  // Delay between drops to avoid rapid clicking bugs
+
+        // --- IMAGE PRELOADER ---
+        const IMAGES = {};
+        function preloadAssets() {
+            for (let i = 1; i <= 10; i++) {
+                const img = new Image();
+                img.src = 'tier' + i + '.png';
+                IMAGES['tier' + i + '.png'] = img;
+            }
+        }
+
+        // --- ENGINE & GAME STATE VARIABLES ---
+        let engine, world, render, runner;
+        let score = 0;
+        let highScore = 0;
+        let currentItemTier = null;
+        let nextItemTier = null;
+        let previewBody = null;
+        let canDrop = true;
+        let isGameOver = false;
+        let pointerX = WORLD_WIDTH / 2;
+        let isPointerActive = false;
+
+        // Track bodies that cross the upper boundary threshold
+        const bodiesAboveLimit = new Map(); // bodyId -> timestamp crossing
+
+        // Visual particle system for merges
+        let mergeParticles = [];
+
+        // --- SOUND MANAGER (Web Audio API Synthesizer) ---
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSynthesizedSound(type) {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            switch (type) {
+                case 'drop':
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.18);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0.001, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                    break;
+
+                case 'merge':
+                    // Magical dual-tone arpeggio
+                    osc.type = 'sine';
+                    const chord = [392.00, 523.25, 659.25, 783.99]; // G5, C6, E6, G6
+                    chord.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.type = 'sine';
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+
+                        noteOsc.frequency.setValueAtTime(freq, now + (idx * 0.05));
+                        noteGain.gain.setValueAtTime(0.05, now + (idx * 0.05));
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.05) + 0.25);
+
+                        noteOsc.start(now + (idx * 0.05));
+                        noteOsc.stop(now + (idx * 0.05) + 0.25);
+                    });
+                    break;
+
+                case 'gameover':
+                    // Descending dramatic synth tone
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(30, now + 0.9);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+                    osc.start(now);
+                    osc.stop(now + 0.9);
+                    break;
+            }
+        }
+
+        // --- PARTICLE SYSTEM ---
+        function createMergeParticles(x, y, color) {
+            for (let i = 0; i < 18; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2.5;
+                mergeParticles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2.0, // magical burst floating upwards
+                    radius: Math.random() * 4 + 2,
+                    color: color,
+                    alpha: 1.0,
+                    decay: Math.random() * 0.025 + 0.015
+                });
+            }
+        }
+
+        function updateAndDrawParticles(ctx) {
+            for (let i = mergeParticles.length - 1; i >= 0; i--) {
+                const p = mergeParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.10; // gravity
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    mergeParticles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- CORE GAME SETUP ---
+        function initGame() {
+            // 1. Reset state
+            score = 0;
+            isGameOver = false;
+            canDrop = true;
+            mergeParticles = [];
+            bodiesAboveLimit.clear();
+            document.getElementById('score-val').textContent = '0';
+            document.getElementById('gameover-modal').classList.add('hidden');
+
+            // Load local high score
+            highScore = localStorage.getItem('celestial_best') || 0;
+            document.getElementById('best-val').textContent = highScore;
+
+            // 2. Clear old Matter.js instance if restarting
+            const container = document.getElementById('game-container');
+            if (render) {
+                Render.stop(render);
+                Runner.stop(runner);
+                Engine.clear(engine);
+                container.innerHTML = '<div id="guide-line" class="guide-line"></div><div id="drop-zone-overlay">Touch or Click to Drop</div>';
+            }
+
+            // 3. Create physics engine
+            engine = Engine.create({
+                gravity: { y: 0.98, scale: 0.001 } // Smooth, celestial dropping gravity
+            });
+            world = engine.world;
+
+            // 4. Create renderer (Updated background to magical deep purple '#2d0b36')
+            render = Render.create({
+                element: container,
+                engine: engine,
+                options: {
+                    width: WORLD_WIDTH,
+                    height: WORLD_HEIGHT,
+                    background: '#2d0b36',
+                    wireframes: false,
+                    showSprites: USE_SPRITES
+                }
+            });
+            
+            const canvas = render.canvas;
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.display = 'block';
+            canvas.style.imageRendering = 'auto';
+            
+            Render.run(render);
+
+            // 5. Create runner
+            runner = Runner.create();
+            Runner.run(runner, engine);
+
+            // 6. Build the static boundaries (invisible/color-matched, as CSS styles borders)
+            const wallOptions = {
+                isStatic: true,
+                friction: 0.2,
+                render: {
+                    fillStyle: '#25072d', // Sleek color that blends with game background
+                    visible: true
+                }
+            };
+
+            // Left Wall
+            const leftWall = Bodies.rectangle(-10, WORLD_HEIGHT / 2, 20, WORLD_HEIGHT, wallOptions);
+            // Right Wall
+            const rightWall = Bodies.rectangle(WORLD_WIDTH + 10, WORLD_HEIGHT / 2, 20, WORLD_HEIGHT, wallOptions);
+            // Bottom Floor
+            const floor = Bodies.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT + 15, WORLD_WIDTH, 40, wallOptions);
+
+            Composite.add(world, [leftWall, rightWall, floor]);
+
+            // 7. Initialize first item tiers
+            currentItemTier = Math.floor(Math.random() * 4); // Start Gem, Moon Shard, Sun Drop, Galaxy Petal
+            nextItemTier = Math.floor(Math.random() * 4);
+
+            updateUI();
+            spawnPreviewFruit();
+
+            // 8. Register Matter.js event hooks
+            registerCollisionEvents();
+            registerUpdateEvents();
+            registerCustomRenderer();
+        }
+
+        // --- SPAWNING FUNCTIONS ---
+
+        /**
+ * Spawns a floating preview item at the top of the container
+ */
+        function spawnPreviewFruit() {
+            if (isGameOver) return;
+
+            const item = CELESTIAL_TIERS[currentItemTier];
+            const r = item.radius;
+
+            // Bounds check to ensure preview stays within walls
+            const minX = r + 10;
+            const maxX = WORLD_WIDTH - r - 10;
+            pointerX = Math.max(minX, Math.min(maxX, pointerX));
+
+            // Custom properties for preview body
+            const bodyOptions = {
+                isStatic: true,
+                collisionFilter: {
+                    category: 0x0002,
+                    mask: 0x0000 
+                },
+                plugin: {
+                    tier: currentItemTier,
+                    isPreview: true
+                }
+            };
+
+            bodyOptions.render = {
+                visible: false
+            };
+
+            previewBody = Bodies.circle(pointerX, DROP_Y, r, bodyOptions);
+            Composite.add(world, previewBody);
+        }
+
+        /**
+ * Creates and inserts a dynamic physics-based item circle
+ */
+        function spawnFruit(x, y, tier, animate = false) {
+            const item = CELESTIAL_TIERS[tier];
+            const r = item.radius;
+
+            const bodyOptions = {
+                friction: 0.12,
+                restitution: 0.18,
+                density: 0.001,
+                plugin: {
+                    tier: tier,
+                    merged: false,
+                    createdAt: Date.now()
+                }
+            };
+
+            bodyOptions.render = {
+                visible: false
+            };
+
+            const circle = Bodies.circle(x, y, r, bodyOptions);
+
+            // Give it a tiny pop velocity on merge spawn
+            if (!animate) {
+                Body.setVelocity(circle, { x: (Math.random() - 0.5) * 1.5, y: -0.5 });
+            }
+
+            Composite.add(world, circle);
+            return circle;
+        }
+
+        /**
+ * Logic triggered when pointer action (click/touch) initiates a drop
+ */
+        function dropCurrentFruit() {
+            if (!canDrop || isGameOver || currentItemTier === null) return;
+
+            canDrop = false;
+            playSynthesizedSound('drop');
+
+            // Remove static preview item
+            if (previewBody) {
+                Composite.remove(world, previewBody);
+                previewBody = null;
+            }
+
+            // Spawn actual dynamic physics body
+            spawnFruit(pointerX, DROP_Y, currentItemTier, true);
+
+            // Hide drop text overlay
+            const overlay = document.getElementById('drop-zone-overlay');
+            if (overlay) overlay.style.display = 'none';
+
+            // Start cooldown phase before next drop is ready
+            setTimeout(() => {
+                if (isGameOver) return;
+
+                // Roll next item forward
+                currentItemTier = nextItemTier;
+                // Limit spawned items to tiers 0 to 4 (Star Gem to Nebula Pearl)
+                nextItemTier = Math.floor(Math.random() * 5);
+
+                updateUI();
+                spawnPreviewFruit();
+                canDrop = true;
+            }, DROP_COOLDOWN_MS);
+        }
+
+        // --- COLLISION MERGE LISTENER ---
+        function registerCollisionEvents() {
+            Events.on(engine, 'collisionStart', (event) => {
+                const pairs = event.pairs;
+
+                for (let i = 0; i < pairs.length; i++) {
+                    const pair = pairs[i];
+                    const bodyA = pair.bodyA;
+                    const bodyB = pair.bodyB;
+
+                    // Ignore static walls or floor
+                    if (bodyA.isStatic || bodyB.isStatic) continue;
+
+                    const tierA = bodyA.plugin ? bodyA.plugin.tier : undefined;
+                    const tierB = bodyB.plugin ? bodyB.plugin.tier : undefined;
+
+                    if (tierA !== undefined && tierA === tierB) {
+                        // Prevent double merging
+                        if (bodyA.plugin.merged || bodyB.plugin.merged) continue;
+
+                        bodyA.plugin.merged = true;
+                        bodyB.plugin.merged = true;
+
+                        const currentTier = tierA;
+
+                        // Determine midpoint coordinates for new item spawn
+                        const midX = (bodyA.position.x + bodyB.position.x) / 2;
+                        const midY = (bodyA.position.y + bodyB.position.y) / 2;
+
+                        // Defer body removal and spawning to end of physics frame
+                        setTimeout(() => {
+                            Composite.remove(world, [bodyA, bodyB]);
+
+                            const nextTier = currentTier + 1;
+                            if (nextTier < CELESTIAL_TIERS.length) {
+                                // Spawn next size up
+                                spawnFruit(midX, midY, nextTier, false);
+                                playSynthesizedSound('merge');
+
+                                // Increment score
+                                addScore(CELESTIAL_TIERS[currentTier].score);
+
+                                // Trigger merge particles
+                                createMergeParticles(midX, midY, CELESTIAL_TIERS[nextTier].color);
+                            } else {
+                                // Merged maximum tier (two Celestial Staffs)!
+                                playSynthesizedSound('merge');
+                                addScore(CELESTIAL_TIERS[currentTier].score * 2);
+                                createMergeParticles(midX, midY, '#ff00aa'); // glowing magenta sparkle
+                            }
+                        }, 0);
+                    }
+                }
+            });
+        }
+
+        // --- GAME STATE MONITORING (Game Over Check) ---
+        function registerUpdateEvents() {
+            Events.on(engine, 'afterUpdate', () => {
+                if (isGameOver) return;
+
+                const bodies = Composite.allBodies(world);
+                const now = Date.now();
+
+                bodies.forEach(body => {
+                    if (body.isStatic || (body.plugin && body.plugin.isPreview)) return;
+
+                    // Ignore freshly spawned items during initial drop sequence
+                    if (body.plugin && (now - body.plugin.createdAt < 1000)) return;
+
+                    if (body.position.y < LIMIT_Y) {
+                        if (!bodiesAboveLimit.has(body.id)) {
+                            bodiesAboveLimit.set(body.id, now);
+                        } else {
+                            const duration = now - bodiesAboveLimit.get(body.id);
+                            if (duration > GAME_OVER_BUFFER_MS) {
+                                triggerGameOver();
+                            }
+                        }
+                    } else {
+                        if (bodiesAboveLimit.has(body.id)) {
+                            bodiesAboveLimit.delete(body.id);
+                        }
+                    }
+                });
+
+                // Clean up tracking for removed bodies
+                const activeIds = new Set(bodies.map(b => b.id));
+                for (const key of bodiesAboveLimit.keys()) {
+                    if (!activeIds.has(key)) {
+                        bodiesAboveLimit.delete(key);
+                    }
+                }
+            });
+        }
+
+        // --- CUSTOM FALLBACK RENDERER & GLOW EFFECTS ---
+        /**
+ * Hook into afterRender.
+ * Draw a beautiful glowing color-coded aura around the active items.
+ * If sprite textures are not yet loaded in the browser cache, 
+ * this automatically draws a gorgeous glowing circle with the emoji inside.
+ */
+        function registerCustomRenderer() {
+            Events.on(render, 'afterRender', () => {
+                const ctx = render.context;
+                const bodies = Composite.allBodies(world);
+
+                bodies.forEach(body => {
+                    const tier = body.plugin ? body.plugin.tier : undefined;
+                    if (tier !== undefined) {
+                        const item = CELESTIAL_TIERS[tier];
+                        const isPreview = body.plugin.isPreview;
+
+                        // 1. Draw glowing aura (softer blur for preview fruit)
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(body.position.x, body.position.y, item.radius - 2, 0, Math.PI * 2);
+                        ctx.strokeStyle = item.color;
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = item.color;
+                        ctx.shadowBlur = isPreview ? 8 : 16;
+                        ctx.stroke();
+                        ctx.restore();
+
+                        // 2. Draw circular clipped sprite / emoji fallback
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(body.position.x, body.position.y, item.radius, 0, Math.PI * 2);
+                        ctx.clip(); // Restrict drawing to the circular body area
+
+                        // Fill circular background
+                        ctx.fillStyle = item.color;
+                        ctx.fill();
+
+                        // Subtle white inside border
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        const spritePath = 'tier' + (tier + 1) + '.png';
+                        const img = IMAGES[spritePath];
+                        const isSpriteLoaded = img && img.complete && img.naturalWidth > 0;
+
+                        if (isSpriteLoaded) {
+                            // Draw the image exactly scaled to the circle's diameter (radius * 2)
+                            const size = item.radius * 2;
+                            ctx.drawImage(
+                                img, 
+                                body.position.x - item.radius, 
+                                body.position.y - item.radius, 
+                                size, 
+                                size
+                            );
+                        } else {
+                            // Draw fallback emoji text centered
+                            ctx.font = `bold ${item.radius * 0.95}px var(--font-sans)`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(item.emoji, body.position.x, body.position.y);
+                        }
+                        ctx.restore();
+                    }
+                });
+
+                // 3. Render particle system updates
+                updateAndDrawParticles(ctx);
+
+                // 4. Draw Game Over visual threshold line
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(0, LIMIT_Y);
+                ctx.lineTo(WORLD_WIDTH, LIMIT_Y);
+                ctx.strokeStyle = isGameOver ? 'rgba(255, 0, 170, 0.8)' : 'rgba(218, 112, 214, 0.25)';
+                ctx.lineWidth = 2;
+                if (!isGameOver) {
+                    ctx.setLineDash([6, 6]);
+                }
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        // --- POINTER / MOBILE TOUCH OPTIMIZATIONS ---
+        function setupInputControls() {
+            const container = document.getElementById('game-container');
+
+            function getScaledX(clientX) {
+                const rect = container.getBoundingClientRect();
+                return (clientX - rect.left) * (WORLD_WIDTH / rect.width);
+            }
+
+            function handlePointerMove(clientX) {
+                if (isGameOver) return;
+                pointerX = getScaledX(clientX);
+
+                // Limit the X coordinate so preview item doesn't clip the outer walls
+                if (currentItemTier !== null) {
+                    const r = CELESTIAL_TIERS[currentItemTier].radius;
+                    const minX = r + 10;
+                    const maxX = WORLD_WIDTH - r - 10;
+                    pointerX = Math.max(minX, Math.min(maxX, pointerX));
+                }
+
+                // Align the floating preview body
+                if (previewBody) {
+                    Body.setPosition(previewBody, { x: pointerX, y: DROP_Y });
+                }
+            }
+
+            // --- MOUSE LISTENERS (Desktop) ---
+            container.addEventListener('mousemove', (e) => {
+                handlePointerMove(e.clientX);
+            });
+
+            container.addEventListener('mousedown', (e) => {
+                initAudioContext();
+                isPointerActive = true;
+                handlePointerMove(e.clientX);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isPointerActive) {
+                    isPointerActive = false;
+                    dropCurrentFruit();
+                }
+            });
+
+            // --- TOUCH LISTENERS (Mobile Optimizations) ---
+            container.addEventListener('touchstart', (e) => {
+                initAudioContext();
+                if (e.touches.length > 0) {
+                    isPointerActive = true;
+                    handlePointerMove(e.touches[0].clientX);
+                }
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    handlePointerMove(e.touches[0].clientX);
+                }
+                // Prevents mobile pull-to-refresh & screen scrolling
+                e.preventDefault(); 
+            }, { passive: false });
+
+            container.addEventListener('touchend', (e) => {
+                if (isPointerActive) {
+                    isPointerActive = false;
+                    dropCurrentFruit();
+                }
+            });
+        }
+
+        // --- UI AND SCOREBOARD UPDATE FUNCTIONS ---
+        function updateUI() {
+            const nextItem = CELESTIAL_TIERS[nextItemTier];
+            const imgEl = document.getElementById('next-fruit-img');
+            const nameEl = document.getElementById('next-fruit-name');
+
+            if (imgEl && nameEl) {
+                imgEl.src = 'tier' + (nextItemTier + 1) + '.png';
+                imgEl.alt = nextItem.name;
+
+                // Inline SVG fallback if file is missing (e.g., Tiers 7-10)
+                imgEl.onerror = function() {
+                    this.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><rect width='100%' height='100%' rx='50%' fill='${encodeURIComponent(nextItem.color)}'/><text x='50%' y='50%' font-size='26' text-anchor='middle' dy='.35em'>${nextItem.emoji}</text></svg>`;
+                };
+
+                nameEl.textContent = nextItem.name;
+
+                imgEl.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    imgEl.style.transform = 'scale(1)';
+                }, 150);
+            }
+        }
+
+        function addScore(amount) {
+            score += amount;
+            document.getElementById('score-val').textContent = score;
+
+            if (score > highScore) {
+                highScore = score;
+                document.getElementById('best-val').textContent = highScore;
+                localStorage.setItem('celestial_best', highScore);
+            }
+        }
+
+        function triggerGameOver() {
+            isGameOver = true;
+            playSynthesizedSound('gameover');
+
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('gameover-modal').classList.remove('hidden');
+
+            if (previewBody) {
+                Composite.remove(world, previewBody);
+                previewBody = null;
+            }
+        }
+
+        // --- INITIALIZATION HOOKS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Preload image assets
+            preloadAssets();
+
+            setupInputControls();
+
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                initAudioContext();
+                initGame();
+            });
+
+            document.getElementById('modal-restart-btn').addEventListener('click', () => {
+                initAudioContext();
+                initGame();
+            });
+
+            initGame();
+        });
+
+    </script>
+</body>
+</html>
