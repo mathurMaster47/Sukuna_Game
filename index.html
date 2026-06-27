@@ -263,34 +263,26 @@
         
         #game-container {
             position: relative;
-            /* Use 90vw on mobile, but cap it at 450px on desktop */
-            width: 90vw;
-            max-width: 450px;
-            /* Lock the aspect ratio so the game never squashes */
+            width: 55vw;
+            max-width: 350px;
+            max-height: 75vh;
             aspect-ratio: 450 / 700;
-            
             background: rgba(45, 11, 54, 0.7);
             border-left: 0.4rem solid var(--panel-border);
             border-right: 0.4rem solid var(--panel-border);
             border-bottom: 0.9rem solid var(--panel-border);
             border-radius: 0 0 1.8% 1.8%;
             box-shadow: 0 1.7rem 3.9rem rgba(0, 0, 0, 0.5), 
-                        inset 0 0 3.3rem rgba(0, 0, 0, 0.4);
-            
-            /* CRITICAL: Changed from 'visible' to 'hidden' */
-            overflow: hidden; 
+            inset 0 0 3.3rem rgba(0, 0, 0, 0.4);
+            overflow: visible;
             z-index: 10;
-            margin: 0 auto;
         }
-        
         #game-container canvas {
             display: block;
-            width: 100% !important;
-            height: 100% !important;
-            /* This ensures the game content stays inside the box */
-            object-fit: contain; 
-        }
-        
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        } 
         /* Interactive elements inside container */
         .guide-line {
             position: absolute;
